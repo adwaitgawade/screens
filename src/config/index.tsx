@@ -85,11 +85,6 @@ export const TIERS: PricingTier[] = [
 ];
 
 export const providerModels = {
-    openai: [
-        'gpt-4o',
-        "gpt-4o-mini",
-        'gpt-4.1-mini',
-    ],
     google: [
         'gemini-2.5-pro',
         'gemini-2.5-flash',
@@ -102,4 +97,10 @@ export const providerModels = {
     groq: [
         'llama-3-groq-70b-tool',
     ],
+    openrouter: [
+        'openai/gpt-oss-20b:free',
+        "kwaipilot/kat-coder-pro:free",
+        "qwen/qwen3-coder:free",
+        "tngtech/deepseek-r1t2-chimera:free"
+    ]
 } as const;

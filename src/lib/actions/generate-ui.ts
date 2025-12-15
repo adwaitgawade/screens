@@ -189,7 +189,7 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
         console.log('[generateUIComponent] System prompt fetched', { systemPrompt });
         console.log('[generateUIComponent] Calling generateObject for LLM UI generation');
         const { object: llmResult } = await generateObject({
-            model: getAiModel('google', 'gemini-2.5-flash'),
+            model: getAiModel("openrouter", "qwen/qwen3-coder:free"),
             system: systemPrompt,
             prompt: prompt,
             schema: mobileUISchema,

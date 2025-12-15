@@ -1,14 +1,17 @@
-import { groq } from '@ai-sdk/groq';
-import { openai } from '@ai-sdk/openai';
-import { createVertex } from '@ai-sdk/google-vertex';
+import { LanguageModel } from 'ai';
 import { providerModels } from '@/config';
-import { LanguageModelV1 } from 'ai';
+import { createVertex } from '@ai-sdk/google-vertex';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+
+const openrouter = createOpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY,
+});
 
 type Provider = keyof typeof providerModels;
 
 type ModelMap = { [P in Provider]: (typeof providerModels[P])[number] };
 
-export const getAiModel = <P extends Provider>(provider: P, model: ModelMap[P]): LanguageModelV1 => {
+export const getAiModel = <P extends Provider>(provider: P, model: ModelMap[P]) => {
     if (provider == "google") {
         const vertex = createVertex({
             location: 'us-central1',
@@ -20,11 +23,9 @@ export const getAiModel = <P extends Provider>(provider: P, model: ModelMap[P]):
                 },
             },
         });
-        return vertex(model) as LanguageModelV1;
-    } else if (provider == 'groq') {
-        return groq(model) as LanguageModelV1;
-    } else if (provider == 'openai') {
-        return openai(model) as LanguageModelV1;
+        return vertex(model);
+    } else if (provider == 'openrouter') {
+        return openrouter.chat(model) as unknown as LanguageModel;
     }
     throw new Error(`Unsupported provider: ${provider}`);
 }
