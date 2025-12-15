@@ -7,26 +7,23 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { uploadWithServiceRole } from '@/lib/supabase/service';
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { redirect } from 'next/navigation';
-import { getUserSubscriptionStatus, deductCredits } from './polar-subscription';
 import { Langfuse, TextPromptClient } from 'langfuse';
 
 type GenerateUIResult = {
     success: boolean;
     projectId?: string;
     error?: string;
-    creditsRemaining?: number;
-    upgradeUrl?: string;
 };
 
 const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPrompt: TextPromptClient }> => {
     const langfuse = new Langfuse();
     const prompt = await langfuse
-    .getPrompt("appdraft-system", undefined, {
-        label: "production",
-    })
-    .then((prompt) => {
-        return { prompt: prompt.prompt, fetchedPrompt: prompt};
-    });
+        .getPrompt("appdraft-system", undefined, {
+            label: "production",
+        })
+        .then((prompt) => {
+            return { prompt: prompt.prompt, fetchedPrompt: prompt };
+        });
 
     return prompt;
 }
@@ -57,22 +54,6 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
         console.log('[generateUIComponent] User authenticated', { userId });
         const supabase = await createClient();
         console.log('[generateUIComponent] Supabase client created');
-
-        // Check credits via Polar subscription service
-        console.log('[generateUIComponent] Checking user credits');
-        const subscriptionStatus = await getUserSubscriptionStatus(userId);
-        const creditsLeft = subscriptionStatus.credits;
-        console.log('[generateUIComponent] User credits', { creditsLeft });
-
-        if (creditsLeft <= 0) {
-            console.log('[generateUIComponent] Insufficient credits', { creditsLeft });
-            return {
-                success: false,
-                error: `Insufficient credits. You have ${creditsLeft} credits remaining.`,
-                creditsRemaining: creditsLeft,
-                upgradeUrl: "/pricing",
-            };
-        }
 
         let finalProjectId = projectId;
 
@@ -285,21 +266,11 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             return { success: false, error: 'Failed to create screen version' };
         }
 
-        // Deduct credits after successful generation
-        console.log('[generateUIComponent] Deducting credits for user', { userId });
-        const deductionResult = await deductCredits(userId, 1);
-        console.log('[generateUIComponent] Credit deduction result', { deductionResult });
-        if (!deductionResult.success) {
-            console.error('[generateUIComponent] Failed to deduct credits:', deductionResult.error);
-        }
-
-        const updatedCreditsLeft = deductionResult.newBalance;
-        console.log('[generateUIComponent] Returning success', { finalProjectId, updatedCreditsLeft });
+        console.log('[generateUIComponent] Returning success', { finalProjectId });
 
         return {
             success: true,
             projectId: finalProjectId,
-            creditsRemaining: updatedCreditsLeft,
         };
 
     } catch (error) {

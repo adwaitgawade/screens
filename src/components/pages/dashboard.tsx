@@ -69,21 +69,6 @@ const Dashboard = () => {
                 if (result.projectId) {
                     router.push(`/project/${result.projectId}`)
                 }
-            } else {
-                // Check if this is a credits-related error
-                const isCreditsError = result.error?.includes('Insufficient credits') ||
-                    (result.creditsRemaining !== undefined && result.creditsRemaining <= 0)
-
-                if (isCreditsError) {
-                    // Show modal for credits exhausted
-                    setModalCreditsRemaining(result.creditsRemaining || 0)
-                    setModalUpgradeUrl(result.upgradeUrl || null)
-                    setShowCreditsModal(true)
-                } else {
-                    // Show inline error for other types of errors
-                    setError(result.error || 'Failed to generate UI')
-                    setUpgradeUrl(result.upgradeUrl || null)
-                }
             }
         } catch (error) {
             console.error('Error generating UI:', error)

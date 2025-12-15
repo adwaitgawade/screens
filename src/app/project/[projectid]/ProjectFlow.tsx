@@ -142,13 +142,6 @@ const ProjectFlow = ({ screens, projectId }: { screens: ProjectScreen[]; project
                 router.refresh();
             } else {
                 console.error('Failed to generate screen:', result.error);
-
-                // If there's an upgrade URL, redirect to checkout
-                if (result.upgradeUrl) {
-                    if (confirm(`${result.error} Would you like to upgrade now?`)) {
-                        window.location.href = result.upgradeUrl;
-                    }
-                }
             }
         } catch (error) {
             console.error('Error generating screen:', error);
