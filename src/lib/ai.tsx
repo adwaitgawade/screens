@@ -23,7 +23,7 @@ export const getAiModel = <P extends Provider>(provider: P, model: ModelMap[P]) 
                 },
             },
         });
-        return vertex(model);
+        return vertex(model) as unknown as LanguageModel;
     } else if (provider == 'openrouter') {
         return openrouter.chat(model) as unknown as LanguageModel;
     }
