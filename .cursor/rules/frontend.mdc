@@ -1,9 +1,0 @@
----
-alwaysApply: true
----
-Use shadcn/ui components wherever possible.
-Follow the theme from globals.css
-Use server components wherever possible.
-Keep the codebase clean, small and maintainable.
-Maintain a changelog.md file to track changes "docs/changelog.md" keep changelog short and concise.
-All things related to backend should be in api route or in server side components.
