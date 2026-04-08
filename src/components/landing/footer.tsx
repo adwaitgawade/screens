@@ -42,11 +42,6 @@ export function Footer() {
                                 </a>
                             </li>
                             <li>
-                                <a href="#pricing" className="text-slate-400 hover:text-white transition-colors">
-                                    Pricing
-                                </a>
-                            </li>
-                            <li>
                                 <a href="#" className="text-slate-400 hover:text-white transition-colors">
                                     API
                                 </a>

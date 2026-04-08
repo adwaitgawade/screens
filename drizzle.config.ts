@@ -16,7 +16,5 @@ export default defineConfig({
         'screens',
         'html_contents',
         'screen_versions',
-        'subscriptions',
-        'polar_config',
     ],
 });

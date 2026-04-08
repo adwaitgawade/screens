@@ -5,19 +5,16 @@ import { generateObject, jsonSchema } from 'ai';
 import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
-import { projects, screens, screenVersions, htmlContents, authUser } from '@/db/schema';
+import { projects, screens, screenVersions, htmlContents } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { redirect } from 'next/navigation';
-import { getUserSubscriptionStatus, deductCredits } from './polar-subscription';
 import { Langfuse, TextPromptClient } from 'langfuse';
 
 type GenerateUIResult = {
     success: boolean;
     projectId?: string;
     error?: string;
-    creditsRemaining?: number;
-    upgradeUrl?: string;
 };
 
 const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPrompt: TextPromptClient }> => {
@@ -58,22 +55,6 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
         const user = session.user;
         const userId = user.id;
         console.log('[generateUIComponent] User authenticated', { userId });
-
-        // Check credits via Polar subscription service
-        console.log('[generateUIComponent] Checking user credits');
-        const subscriptionStatus = await getUserSubscriptionStatus(userId);
-        const creditsLeft = subscriptionStatus.credits;
-        console.log('[generateUIComponent] User credits', { creditsLeft });
-
-        if (creditsLeft <= 0) {
-            console.log('[generateUIComponent] Insufficient credits', { creditsLeft });
-            return {
-                success: false,
-                error: `Insufficient credits. You have ${creditsLeft} credits remaining.`,
-                creditsRemaining: creditsLeft,
-                upgradeUrl: "/pricing",
-            };
-        }
 
         let finalProjectId = projectId;
 
@@ -245,19 +226,9 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             return { success: false, error: 'Failed to create screen version' };
         }
 
-        // Deduct credits after successful generation
-        console.log('[generateUIComponent] Deducting credits for user', { userId });
-        const deductionResult = await deductCredits(userId, 1);
-        if (!deductionResult.success) {
-            console.error('[generateUIComponent] Failed to deduct credits:', deductionResult.error);
-        }
-
-        const updatedCreditsLeft = deductionResult.newBalance;
-
         return {
             success: true,
             projectId: finalProjectId,
-            creditsRemaining: updatedCreditsLeft,
         };
 
     } catch (error) {

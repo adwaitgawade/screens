@@ -116,48 +116,9 @@ export const screenVersions = pgTable(
 );
 
 // =====================
-// SUBSCRIPTIONS (with Polar integration)
-// =====================
-export const subscriptions = pgTable(
-    'subscriptions',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        userId: uuid('user_id')
-            .references(() => authUser.id, { onDelete: 'cascade' })
-            .notNull(),
-        planName: text('plan_name').notNull(),
-        status: text('status').notNull(),
-        currentPeriodStart: timestamptz('current_period_start'),
-        currentPeriodEnd: timestamptz('current_period_end'),
-        polarSubscriptionId: text('polar_subscription_id').unique(),
-        polarCustomerId: text('polar_customer_id'),
-        ...timestamps,
-    },
-    (t) => [
-        index('idx_subscriptions_user_id').on(t.userId),
-        index('idx_subscriptions_status').on(t.status),
-        index('idx_subscriptions_polar_customer_id').on(t.polarCustomerId),
-        uniqueIndex('idx_subscriptions_polar_subscription_id').on(t.polarSubscriptionId),
-    ],
-);
-
-// =====================
-// POLAR CONFIG
-// =====================
-export const polarConfig = pgTable('polar_config', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    meterName: text('meter_name').notNull(),
-    meterId: text('meter_id'),
-    creditsPerSubscription: jsonb('credits_per_subscription')
-        .$type<{ standard: number; pro: number }>()
-        .default({ standard: 200, pro: 500 }),
-    creditCostPerGeneration: integer('credit_cost_per_generation').default(1),
-    ...timestamps,
-});
-
-// =====================
 // TYPE INFERENCE
 // =====================
+export const AuthUserSchema = authUser;
 export type AuthUser = typeof authUser.$inferSelect;
 
 export type Project = typeof projects.$inferSelect;
@@ -172,7 +133,3 @@ export type NewHtmlContent = typeof htmlContents.$inferInsert;
 export type ScreenVersion = typeof screenVersions.$inferSelect;
 export type NewScreenVersion = typeof screenVersions.$inferInsert;
 
-export type Subscription = typeof subscriptions.$inferSelect;
-export type NewSubscription = typeof subscriptions.$inferInsert;
-
-export type PolarConfig = typeof polarConfig.$inferSelect;

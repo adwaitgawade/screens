@@ -7,9 +7,6 @@ import { generateUIComponent } from '@/lib/actions/generate-ui'
 import { getProjects } from '@/lib/actions/project-actions'
 import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Crown } from 'lucide-react'
-import { CreditsExhaustedModal } from '@/components/ui/credits-exhausted-modal'
 
 interface Project {
     id: string
@@ -24,10 +21,6 @@ const Dashboard = () => {
     const [projectList, setProjectList] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [upgradeUrl, setUpgradeUrl] = useState<string | null>(null)
-    const [showCreditsModal, setShowCreditsModal] = useState(false)
-    const [modalCreditsRemaining, setModalCreditsRemaining] = useState(0)
-    const [modalUpgradeUrl, setModalUpgradeUrl] = useState<string | null>(null)
     const { user } = useAuth()
     const router = useRouter()
 
@@ -53,7 +46,6 @@ const Dashboard = () => {
     const handlePromptSubmit = async (prompt: string) => {
         setIsGenerating(true)
         setError(null)
-        setUpgradeUrl(null)
         try {
             const result = await generateUIComponent(prompt)
 
@@ -63,20 +55,7 @@ const Dashboard = () => {
                     router.push(`/project/${result.projectId}`)
                 }
             } else {
-                // Check if this is a credits-related error
-                const isCreditsError = result.error?.includes('Insufficient credits') ||
-                    (result.creditsRemaining !== undefined && result.creditsRemaining <= 0)
-
-                if (isCreditsError) {
-                    // Show modal for credits exhausted
-                    setModalCreditsRemaining(result.creditsRemaining || 0)
-                    setModalUpgradeUrl(result.upgradeUrl || null)
-                    setShowCreditsModal(true)
-                } else {
-                    // Show inline error for other types of errors
-                    setError(result.error || 'Failed to generate UI')
-                    setUpgradeUrl(result.upgradeUrl || null)
-                }
+                setError(result.error || 'Failed to generate UI')
             }
         } catch (error) {
             console.error('Error generating UI:', error)
@@ -97,21 +76,12 @@ const Dashboard = () => {
                             isLoading={isGenerating}
                         />
 
-                        {/* Error Display with Upgrade Option */}
+                        {/* Error Display */}
                         {error && (
                             <Card className="border-destructive">
                                 <CardContent className="pt-6">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                         <div className="text-destructive">{error}</div>
-                                        {upgradeUrl && (
-                                            <Button
-                                                onClick={() => window.location.href = upgradeUrl}
-                                                className="flex items-center gap-1"
-                                            >
-                                                <Crown className="h-4 w-4" />
-                                                Upgrade Now
-                                            </Button>
-                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -121,7 +91,7 @@ const Dashboard = () => {
                             <h2 className="text-2xl font-bold mb-4">Your Projects</h2>
                         </div>
                         {loading && <div>Loading projects...</div>}
-                        {error && !upgradeUrl && <div className="text-red-500">{error}</div>}
+                        {error && <div className="text-red-500">{error}</div>}
                         {!loading && !error && projectList.length === 0 && (
                             <div className="text-muted-foreground">No projects found. Start by generating one!</div>
                         )}
@@ -150,14 +120,6 @@ const Dashboard = () => {
                     </div>
                 </main>
             </AuthenticatedNavbar>
-
-            {/* Credits Exhausted Modal */}
-            <CreditsExhaustedModal
-                isOpen={showCreditsModal}
-                onClose={() => setShowCreditsModal(false)}
-                creditsRemaining={modalCreditsRemaining}
-                upgradeUrl={modalUpgradeUrl || undefined}
-            />
         </div>
     )
 }

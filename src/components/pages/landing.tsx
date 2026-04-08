@@ -19,7 +19,6 @@ import { ProblemSolution } from "../landing/problem-solution"
 import { Features } from "../landing/features"
 import { HowItWorks } from "../landing/how-it-works"
 import { SocialProof } from "../landing/social-proof"
-import { Pricing } from "../landing/pricing"
 import { Footer } from "../landing/footer"
 
 const TESTIMONIAL = {
@@ -30,8 +29,8 @@ const TESTIMONIAL = {
 
 const FAQS = [
     {
-        q: "Is there a free plan?",
-        a: "Yes! You can get started for free and generate screens with limited credits. Upgrade anytime for more features.",
+        q: "Is it free to use?",
+        a: "Yes! Currently, you can get started and generate screens for free.",
     },
     {
         q: "Can I use the generated code in my projects?",
@@ -58,7 +57,6 @@ const LandingPage = () => {
                         <HowItWorks />
                         <Demo />
                         <SocialProof />
-                        <Pricing />
                         <FAQ />
                         <FinalCTA />
                     </main>

@@ -33,9 +33,6 @@ export function Header() {
                         <a href="#how-it-works" className="text-slate-300 hover:text-white transition-colors">
                             How It Works
                         </a>
-                        <a href="#pricing" className="text-slate-300 hover:text-white transition-colors">
-                            Pricing
-                        </a>
                         <a href="#faq" className="text-slate-300 hover:text-white transition-colors">
                             FAQ
                         </a>
@@ -67,9 +64,6 @@ export function Header() {
                             </a>
                             <a href="#how-it-works" className="text-slate-300 hover:text-white transition-colors">
                                 How It Works
-                            </a>
-                            <a href="#pricing" className="text-slate-300 hover:text-white transition-colors">
-                                Pricing
                             </a>
                             <a href="#faq" className="text-slate-300 hover:text-white transition-colors">
                                 FAQ

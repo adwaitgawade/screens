@@ -24,10 +24,6 @@ const AppNavbar = ({ children }: { children: React.ReactNode }) => {
             link: "#features",
         },
         {
-            name: "Pricing",
-            link: "/pricing",
-        },
-        {
             name: "Contact",
             link: "#contact",
         },
