@@ -1,4 +1,4 @@
-import { getProjectScreens } from '@/lib/supabase/getProjectScreens';
+import { getProjectScreens } from '@/lib/actions/screen-actions';
 import ProjectFlow from './ProjectFlow';
 
 const ProjectPage = async ({ params }: { params: Promise<{ projectid: string }> }) => {

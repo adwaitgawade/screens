@@ -43,12 +43,12 @@ export function Header() {
 
                     <div className="hidden md:flex items-center space-x-4">
                         <Link
-                            href='/auth/login'
+                            href='/sign-in'
                             className={`${buttonVariants({ variant: "ghost" })} text-slate-300 hover:text-white`}>
                             Sign In
                         </Link>
                         <Link
-                            href='/auth/login'
+                            href='/sign-up'
                             className={`${buttonVariants({ variant: "ghost" })} bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white`}>
                             Start Creating - Free
                         </Link>

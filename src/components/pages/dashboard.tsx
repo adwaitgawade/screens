@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { PromptInput } from '@/components/prompt-input'
 import { useAuth } from '@/components/auth/auth-provider'
 import { generateUIComponent } from '@/lib/actions/generate-ui'
+import { getProjects } from '@/lib/actions/project-actions'
 import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,13 +15,13 @@ interface Project {
     id: string
     name: string
     description: string | null
-    created_at: string
-    updated_at: string
+    createdAt: string
+    updatedAt: string
 }
 
 const Dashboard = () => {
     const [isGenerating, setIsGenerating] = useState(false)
-    const [projects, setProjects] = useState<Project[]>([])
+    const [projectList, setProjectList] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [upgradeUrl, setUpgradeUrl] = useState<string | null>(null)
@@ -31,19 +31,12 @@ const Dashboard = () => {
     const { user } = useAuth()
     const router = useRouter()
 
-    // Refactored fetchProjects function
-    const fetchProjects = async (userId: string) => {
+    const fetchProjectList = async (userId: string) => {
         setLoading(true)
         setError(null)
         try {
-            const supabase = createClient()
-            const { data, error } = await supabase
-                .from('projects')
-                .select('id, name, description, created_at, updated_at')
-                .eq('user_id', userId)
-                .order('updated_at', { ascending: false })
-            if (error) throw error
-            setProjects(data || [])
+            const data = await getProjects(userId)
+            setProjectList(data || [])
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Failed to load projects')
         } finally {
@@ -53,7 +46,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (user) {
-            fetchProjects(user.id)
+            fetchProjectList(user.id)
         }
     }, [user])
 
@@ -65,7 +58,7 @@ const Dashboard = () => {
             const result = await generateUIComponent(prompt)
 
             if (result.success) {
-                if (user) await fetchProjects(user.id)
+                if (user) await fetchProjectList(user.id)
                 if (result.projectId) {
                     router.push(`/project/${result.projectId}`)
                 }
@@ -129,11 +122,11 @@ const Dashboard = () => {
                         </div>
                         {loading && <div>Loading projects...</div>}
                         {error && !upgradeUrl && <div className="text-red-500">{error}</div>}
-                        {!loading && !error && projects.length === 0 && (
+                        {!loading && !error && projectList.length === 0 && (
                             <div className="text-muted-foreground">No projects found. Start by generating one!</div>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                            {projects.map((project) => (
+                            {projectList.map((project: Project) => (
                                 <Card
                                     key={project.id}
                                     className="cursor-pointer hover:shadow-md transition-shadow"
@@ -147,7 +140,7 @@ const Dashboard = () => {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="text-xs text-muted-foreground">
-                                                Last updated: {new Date(project.updated_at).toLocaleString()}
+                                                Last updated: {new Date(project.updatedAt).toLocaleString()}
                                             </div>
                                         </CardContent>
                                     </Link>

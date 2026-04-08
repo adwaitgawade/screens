@@ -3,8 +3,10 @@
 import { getAiModel } from '@/lib/ai';
 import { generateObject, jsonSchema } from 'ai';
 import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
-import { createClient, getCurrentUser } from '@/lib/supabase/server';
-import { uploadWithServiceRole } from '@/lib/supabase/service';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/drizzle';
+import { projects, screens, screenVersions, htmlContents, authUser } from '@/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { redirect } from 'next/navigation';
 import { getUserSubscriptionStatus, deductCredits } from './polar-subscription';
@@ -21,12 +23,12 @@ type GenerateUIResult = {
 const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPrompt: TextPromptClient }> => {
     const langfuse = new Langfuse();
     const prompt = await langfuse
-    .getPrompt("appdraft-system", undefined, {
-        label: "production",
-    })
-    .then((prompt) => {
-        return { prompt: prompt.prompt, fetchedPrompt: prompt};
-    });
+        .getPrompt("appdraft-system", undefined, {
+            label: "production",
+        })
+        .then((prompt) => {
+            return { prompt: prompt.prompt, fetchedPrompt: prompt };
+        });
 
     return prompt;
 }
@@ -45,18 +47,17 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             return { success: false, error: 'Prompt is too long (max 1000 characters)' };
         }
 
-        // Get authenticated user
+        // Get authenticated user via Neon Auth
         console.log('[generateUIComponent] Getting current user');
-        const user = await getCurrentUser();
-        if (!user) {
+        const { data: session } = await auth.getSession();
+        if (!session?.user) {
             console.log('[generateUIComponent] User not authenticated');
             return { success: false, error: 'Not authenticated' };
         }
 
+        const user = session.user;
         const userId = user.id;
         console.log('[generateUIComponent] User authenticated', { userId });
-        const supabase = await createClient();
-        console.log('[generateUIComponent] Supabase client created');
 
         // Check credits via Polar subscription service
         console.log('[generateUIComponent] Checking user credits');
@@ -88,65 +89,40 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             });
             console.log('[generateUIComponent] Generated project name', { projectName });
 
-            // Create project
-            finalProjectId = crypto.randomUUID();
-            console.log('[generateUIComponent] Generated project UUID', { finalProjectId });
+            // Create project via Drizzle
+            const [newProject] = await db.insert(projects).values({
+                userId,
+                name: projectName,
+                description: prompt,
+                prompt: prompt,
+            }).returning({ id: projects.id });
 
-            const { error: projectError } = await supabase.from('projects').insert([
-                {
-                    id: finalProjectId,
-                    user_id: userId,
-                    name: projectName,
-                    description: prompt,
-                    prompt: prompt,
-                }
-            ]);
-            console.log('[generateUIComponent] Inserted project', { finalProjectId, projectError });
-
-            if (projectError) {
-                console.error('[generateUIComponent] Project creation error:', projectError);
+            if (!newProject) {
+                console.error('[generateUIComponent] Project creation failed');
                 return { success: false, error: 'Failed to create project' };
             }
 
-            // Verify project was created successfully before proceeding
-            const { data: createdProject, error: verifyError } = await supabase
-                .from('projects')
-                .select('id, user_id')
-                .eq('id', finalProjectId)
-                .eq('user_id', userId)
-                .single();
-            console.log('[generateUIComponent] Verified project creation', { createdProject, verifyError });
-
-            if (verifyError || !createdProject) {
-                console.error('[generateUIComponent] Project verification error:', verifyError);
-                return { success: false, error: 'Failed to verify project creation' };
-            }
+            finalProjectId = newProject.id;
+            console.log('[generateUIComponent] Created project', { finalProjectId });
         } else {
             // Verify project exists and user has access
             console.log('[generateUIComponent] projectId provided, verifying access', { projectId });
-            const { data: project, error: projectError } = await supabase
-                .from('projects')
-                .select('id')
-                .eq('id', projectId)
-                .eq('user_id', userId)
-                .single();
-            console.log('[generateUIComponent] Project access check', { project, projectError });
+            const [project] = await db
+                .select({ id: projects.id })
+                .from(projects)
+                .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+                .limit(1);
 
-            if (projectError || !project) {
+            if (!project) {
                 console.log('[generateUIComponent] Project not found or access denied', { projectId });
                 return { success: false, error: 'Project not found or access denied' };
             }
 
             // Update project's updated_at timestamp
-            const { error: updateError } = await supabase
-                .from('projects')
-                .update({ updated_at: new Date().toISOString() })
-                .eq('id', projectId);
-            console.log('[generateUIComponent] Updated project timestamp', { updateError });
-
-            if (updateError) {
-                console.error('[generateUIComponent] Project update error:', updateError);
-            }
+            await db
+                .update(projects)
+                .set({ updatedAt: new Date().toISOString() })
+                .where(eq(projects.id, projectId));
         }
 
         // Define schema for LLM response
@@ -181,15 +157,13 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             },
             required: ['component']
         });
-        console.log('[generateUIComponent] LLM schema defined');
 
         // Generate UI with LLM
         console.log('[generateUIComponent] Fetching system prompt from Langfuse');
         const { prompt: systemPrompt, fetchedPrompt } = await getLangfuseSystemPrompt();
-        console.log('[generateUIComponent] System prompt fetched', { systemPrompt });
         console.log('[generateUIComponent] Calling generateObject for LLM UI generation');
         const { object: llmResult } = await generateObject({
-            model: getAiModel("openrouter", "qwen/qwen3-coder:free"),
+            model: getAiModel("openrouter", "minimax/minimax-m2.5:free"),
             system: systemPrompt,
             prompt: prompt,
             schema: mobileUISchema,
@@ -197,9 +171,11 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
                 google: {
                     thinkingConfig: {
                         includeThoughts: true,
-                        //thinkingBudget: 2048,
                     },
                 } satisfies GoogleGenerativeAIProviderOptions,
+                openrouter: {
+                    enableThinking: false,
+                }
             },
             experimental_telemetry: {
                 isEnabled: true,
@@ -211,90 +187,72 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
                 }
             },
         });
-        console.log('[generateUIComponent] LLM result received', { llmResult });
+        console.log('[generateUIComponent] LLM result received');
 
         // Get the next order index for the screen
-        console.log('[generateUIComponent] Fetching last screen order index');
-        const { data: lastScreen, error: orderError } = await supabase
-            .from('screens')
-            .select('order_index')
-            .eq('project_id', finalProjectId)
-            .order('order_index', { ascending: false })
-            .limit(1)
-            .single();
-        console.log('[generateUIComponent] Last screen order index', { lastScreen, orderError });
+        const [lastScreen] = await db
+            .select({ orderIndex: screens.orderIndex })
+            .from(screens)
+            .where(eq(screens.projectId, finalProjectId!))
+            .orderBy(desc(screens.orderIndex))
+            .limit(1);
 
-        const nextOrderIndex = lastScreen ? lastScreen.order_index + 1 : 0;
-        console.log('[generateUIComponent] Next order index', { nextOrderIndex });
+        const nextOrderIndex = lastScreen ? (lastScreen.orderIndex ?? 0) + 1 : 0;
 
-        // Store HTML in Supabase Storage using service role (bypasses RLS)
-        const screenId = crypto.randomUUID();
-        const versionId = crypto.randomUUID();
-        const htmlFilePath = `projects/${finalProjectId}/screens/${screenId}/v1/index.html`;
+        // Store HTML content in the database
         const htmlContent = llmResult.component.html;
-        console.log('[generateUIComponent] Preparing to upload HTML', { htmlFilePath });
+        const [newHtmlContent] = await db
+            .insert(htmlContents)
+            .values({ html: htmlContent })
+            .returning({ id: htmlContents.id });
 
-        const uploadResult = await uploadWithServiceRole(
-            'html-files',
-            htmlFilePath,
-            htmlContent,
-            'text/html'
-        );
-        console.log('[generateUIComponent] HTML upload result', { uploadResult });
-
-        if (!uploadResult.success) {
-            console.error('[generateUIComponent] Storage error:', uploadResult.error);
-            return { success: false, error: 'Failed to upload HTML' };
+        if (!newHtmlContent) {
+            console.error('[generateUIComponent] Failed to store HTML content');
+            return { success: false, error: 'Failed to store HTML content' };
         }
 
         // Create screen record
-        console.log('[generateUIComponent] Inserting screen record', { screenId, finalProjectId, name: llmResult.component.name, nextOrderIndex });
-        const { error: screenError } = await supabase.from('screens').insert([
-            {
-                id: screenId,
-                project_id: finalProjectId,
+        const [newScreen] = await db
+            .insert(screens)
+            .values({
+                projectId: finalProjectId!,
                 name: llmResult.component.name,
-                order_index: nextOrderIndex,
-            }
-        ]);
-        console.log('[generateUIComponent] Screen insert result', { screenError });
+                orderIndex: nextOrderIndex,
+            })
+            .returning({ id: screens.id });
 
-        if (screenError) {
-            console.error('[generateUIComponent] Screen creation error:', screenError);
+        if (!newScreen) {
+            console.error('[generateUIComponent] Screen creation failed');
             return { success: false, error: 'Failed to create screen' };
         }
 
         // Create screen version record
-        console.log('[generateUIComponent] Inserting screen version record', { versionId, screenId, htmlFilePath });
-        const { error: versionError } = await supabase.from('screen_versions').insert([
-            {
-                id: versionId,
-                screen_id: screenId,
-                version_number: 1,
-                user_prompt: prompt,
-                ai_prompt: prompt,
-                html_file_path: htmlFilePath,
-                created_by: userId,
-                is_current: true,
-            }
-        ]);
-        console.log('[generateUIComponent] Screen version insert result', { versionError });
+        const [newVersion] = await db
+            .insert(screenVersions)
+            .values({
+                screenId: newScreen.id,
+                versionNumber: 1,
+                userPrompt: prompt,
+                aiPrompt: prompt,
+                htmlContentId: newHtmlContent.id,
+                createdBy: userId,
+                isCurrent: true,
+            })
+            .returning({ id: screenVersions.id });
 
-        if (versionError) {
-            console.error('[generateUIComponent] Version creation error:', versionError);
+        if (!newVersion) {
+            console.error('[generateUIComponent] Version creation failed');
             return { success: false, error: 'Failed to create screen version' };
         }
 
         // Deduct credits after successful generation
         console.log('[generateUIComponent] Deducting credits for user', { userId });
         const deductionResult = await deductCredits(userId, 1);
-        console.log('[generateUIComponent] Credit deduction result', { deductionResult });
         if (!deductionResult.success) {
             console.error('[generateUIComponent] Failed to deduct credits:', deductionResult.error);
         }
 
         const updatedCreditsLeft = deductionResult.newBalance;
-        console.log('[generateUIComponent] Returning success', { finalProjectId, updatedCreditsLeft });
 
         return {
             success: true,
@@ -322,4 +280,4 @@ export async function generateUIAndRedirect(formData: FormData) {
     } else {
         throw new Error(result.error || 'Failed to generate UI');
     }
-} 
+}

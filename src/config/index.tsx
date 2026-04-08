@@ -98,9 +98,6 @@ export const providerModels = {
         'llama-3-groq-70b-tool',
     ],
     openrouter: [
-        'openai/gpt-oss-20b:free',
-        "kwaipilot/kat-coder-pro:free",
-        "qwen/qwen3-coder:free",
-        "tngtech/deepseek-r1t2-chimera:free"
+        "minimax/minimax-m2.5:free"
     ]
 } as const;

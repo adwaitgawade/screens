@@ -8,7 +8,7 @@ import { Spotlight } from "../ui/spotlight"
 import { GlowingEffect } from "../ui/glowing-effect"
 import { Sparkles, Smartphone, Zap, Quote, User } from "lucide-react"
 import Link from "next/link"
-import OneTapComponent from "../auth/google-one-tap"
+
 import { motion } from 'framer-motion';
 import { Demo } from "../landing/demo"
 import { Header } from "../landing/header"
@@ -47,7 +47,6 @@ const LandingPage = () => {
     return (
         <>
             {/* <AppNavbar> */}
-            <OneTapComponent />
             <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
                 <div className="fixed inset-0 bg-gradient-to-br from-indigo-900/20 via-slate-950 to-blue-900/20 pointer-events-none" />
                 <div className="relative z-10">

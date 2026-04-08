@@ -1,44 +1,62 @@
 import { Webhooks } from '@polar-sh/nextjs';
-import { createClient } from '@/lib/supabase/server';
+import { db } from '@/db/drizzle';
+import { subscriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const POST = Webhooks({
     webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
 
     // Catch-all handler for all webhook events
     onPayload: async (payload) => {
-        try {
-            const supabase = await createClient();
 
+        console.log(payload);
+
+        try {
             // Handle subscription events
             if (payload.type.startsWith('subscription.')) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const data = payload.data as any; // Webhook payload data structure varies by event type
+                const data = payload.data as any;
 
                 if (payload.type === 'subscription.created' || payload.type === 'subscription.updated') {
-                    await supabase
-                        .from('subscriptions')
-                        .upsert({
-                            user_id: data.customer?.externalId || data.customer?.external_id,
-                            polar_subscription_id: data.id,
-                            polar_customer_id: data.customer?.id,
-                            status: data.status,
-                            current_period_start: data.currentPeriodStart || data.current_period_start,
-                            current_period_end: data.currentPeriodEnd || data.current_period_end,
-                            updated_at: new Date().toISOString(),
-                        }, {
-                            onConflict: 'polar_subscription_id'
-                        });
+                    const userId = data.customer?.externalId || data.customer?.external_id;
+                    const polarSubId = data.id;
+                    console.log(userId);
+                    console.log(polarSubId);
+
+                    if (userId && polarSubId) {
+                        // Upsert subscription using Drizzle
+                        await db
+                            .insert(subscriptions)
+                            .values({
+                                userId,
+                                planName: data.product?.name || 'unknown',
+                                polarSubscriptionId: polarSubId,
+                                polarCustomerId: data.customer?.id,
+                                status: data.status,
+                                currentPeriodStart: data.currentPeriodStart || data.current_period_start,
+                                currentPeriodEnd: data.currentPeriodEnd || data.current_period_end,
+                            })
+                            .onConflictDoUpdate({
+                                target: subscriptions.polarSubscriptionId,
+                                set: {
+                                    status: data.status,
+                                    currentPeriodStart: data.currentPeriodStart || data.current_period_start,
+                                    currentPeriodEnd: data.currentPeriodEnd || data.current_period_end,
+                                    updatedAt: new Date().toISOString(),
+                                },
+                            });
+                    }
                 }
 
                 if (payload.type === 'subscription.canceled' || payload.type === 'subscription.revoked') {
-                    await supabase
-                        .from('subscriptions')
-                        .update({
-                            status: payload.type === 'subscription.canceled' ? 'canceled' : 'revoked',
-                            canceled_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
+                    const newStatus = payload.type === 'subscription.canceled' ? 'canceled' : 'revoked';
+                    await db
+                        .update(subscriptions)
+                        .set({
+                            status: newStatus,
+                            updatedAt: new Date().toISOString(),
                         })
-                        .eq('polar_subscription_id', data.id);
+                        .where(eq(subscriptions.polarSubscriptionId, data.id));
                 }
             }
 
@@ -62,4 +80,4 @@ export const POST = Webhooks({
             // Don't throw - return 200 to acknowledge receipt
         }
     },
-}); 
+});

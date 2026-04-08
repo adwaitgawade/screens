@@ -11,7 +11,7 @@ import {
     BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/base.css';
-import { ProjectScreen } from '@/lib/supabase/getProjectScreens';
+import { ProjectScreen } from '@/lib/actions/screen-actions';
 import { generateUIComponent } from '@/lib/actions/generate-ui';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 
 interface MobileUIData {
     title: string;
-    url: string;
+    html: string;
 }
 
 interface PromptInputData {
@@ -31,16 +31,6 @@ interface PromptInputData {
 }
 
 const MobileUINode = ({ data }: { data: MobileUIData }) => {
-    const [htmlContent, setHtmlContent] = useState<string>('');
-
-    useEffect(() => {
-        if (!data.url) return;
-        fetch(data.url)
-            .then((res) => res.text())
-            .then((html) => setHtmlContent(html))
-            .catch(() => setHtmlContent('<p>Failed to load content.</p>'));
-    }, [data.url]);
-
     return (
         <div className="bg-white rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden">
             <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
@@ -50,7 +40,7 @@ const MobileUINode = ({ data }: { data: MobileUIData }) => {
             </div>
             <div className="w-[414px] h-[896px] bg-white">
                 <iframe
-                    src={`data:text/html,${encodeURIComponent(htmlContent)}`}
+                    src={`data:text/html,${encodeURIComponent(data.html)}`}
                     className="w-full h-full border-0"
                     title={data.title}
                     sandbox="allow-scripts"
@@ -165,7 +155,7 @@ const ProjectFlow = ({ screens, projectId }: { screens: ProjectScreen[]; project
             position: { x: index * 500, y: 0 },
             data: {
                 title: screen.name,
-                url: screen.htmlUrl,
+                html: screen.html,
             },
         }));
 
