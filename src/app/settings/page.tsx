@@ -1,14 +1,14 @@
 'use client'
 
-import { useAuth } from '@/components/auth/auth-provider'
 import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Settings, User } from 'lucide-react'
+import { authClient } from '@/lib/auth-client'
 
 const SettingsPage = () => {
-    const { user } = useAuth()
+    const { data: session, isPending, error } = authClient.useSession();
 
-    if (!user) {
+    if (!session?.user) {
         return <div>Please log in to access settings.</div>
     }
 
@@ -34,11 +34,11 @@ const SettingsPage = () => {
                                 <div className="space-y-2">
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                                        <p className="text-sm font-mono">{user.id}</p>
+                                        <p className="text-sm font-mono">{session.user.id}</p>
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Email</label>
-                                        <p className="text-sm">{user.email}</p>
+                                        <p className="text-sm">{session.user.email}</p>
                                     </div>
                                 </div>
                             </CardContent>

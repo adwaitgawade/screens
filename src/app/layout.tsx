@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/components/auth/auth-provider";
+import { NeonAuthUIProvider, UserButton } from '@neondatabase/auth/react';
+import { authClient } from "@/lib/auth-client";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,11 +36,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
+          <NeonAuthUIProvider authClient={authClient} emailOTP>
             {children}
-          </AuthProvider>
+          </NeonAuthUIProvider>
         </ThemeProvider>
       </body>
-    </html>
+    </html >
   );
 }

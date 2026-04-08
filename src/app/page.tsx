@@ -1,14 +1,14 @@
 'use client'
 
 import React from 'react'
-import { useAuth } from '@/components/auth/auth-provider'
 import LandingPage from '@/components/pages/landing'
 import Dashboard from '@/components/pages/dashboard'
+import { authClient } from '@/lib/auth-client'
 
 const Page = () => {
-  const { user, loading } = useAuth()
+  const { data, isPending, error } = authClient.useSession();
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="w-screen h-screen flex items-center justify-center">
         <div className="text-center">
@@ -19,7 +19,7 @@ const Page = () => {
     )
   }
 
-  return user ? <Dashboard /> : <LandingPage />
+  return data?.user ? <Dashboard /> : <LandingPage />
 }
 
 export default Page

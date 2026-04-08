@@ -1,20 +1,12 @@
-import { config } from 'dotenv';
-import { defineConfig } from 'drizzle-kit';
+import 'dotenv/config';
+import type { Config } from 'drizzle-kit';
 
-config({ path: '.env' });
-
-export default defineConfig({
+export default {
     schema: './src/db/schema.ts',
     out: './drizzle',
     dialect: 'postgresql',
+    schemaFilter: ['public', 'neon_auth'],
     dbCredentials: {
         url: process.env.DATABASE_URL!,
     },
-    // Only manage our custom tables — exclude Neon Auth (Better Auth) managed tables
-    tablesFilter: [
-        'projects',
-        'screens',
-        'html_contents',
-        'screen_versions',
-    ],
-});
+} satisfies Config;

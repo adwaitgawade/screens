@@ -2,11 +2,11 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PromptInput } from '@/components/prompt-input'
-import { useAuth } from '@/components/auth/auth-provider'
 import { generateUIComponent } from '@/lib/actions/generate-ui'
 import { getProjects } from '@/lib/actions/project-actions'
 import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { authClient } from '@/lib/auth-client'
 
 interface Project {
     id: string
@@ -21,7 +21,7 @@ const Dashboard = () => {
     const [projectList, setProjectList] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { user } = useAuth()
+    const { data: user, isPending } = authClient.useSession();
     const router = useRouter()
 
     const fetchProjectList = async (userId: string) => {
@@ -38,10 +38,10 @@ const Dashboard = () => {
     }
 
     useEffect(() => {
-        if (user) {
-            fetchProjectList(user.id)
+        if (user?.user) {
+            fetchProjectList(user.user.id)
         }
-    }, [user])
+    }, [user?.user])
 
     const handlePromptSubmit = async (prompt: string) => {
         setIsGenerating(true)
@@ -50,7 +50,7 @@ const Dashboard = () => {
             const result = await generateUIComponent(prompt)
 
             if (result.success) {
-                if (user) await fetchProjectList(user.id)
+                if (user?.user) await fetchProjectList(user.user.id)
                 if (result.projectId) {
                     router.push(`/project/${result.projectId}`)
                 }

@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/resizable-navbar";
 import { useState } from "react";
 import { IconLogout } from "@tabler/icons-react";
-import { useAuth } from "./auth/auth-provider";
 import Image from "next/image";
 import { ModeToggle } from "./theme-toggle";
+import { authClient } from "@/lib/auth-client";
 
 const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -26,7 +26,7 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
         { name: "Settings", link: "/settings" },
     ];
 
-    const { user, signOut } = useAuth()
+    const { data: session, isPending, error } = authClient.useSession();
 
     return (
         <div className="relative w-full">
@@ -39,7 +39,7 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
                         {/* Avatar */}
                         <div className="flex items-center gap-3">
                             <Image
-                                src={user?.image || "https://img.freepik.com/premium-vector/picture-boy-with-blue-shirt-that-says-hes-character_1230457-36809.jpg"}
+                                src={session?.user?.image || "https://img.freepik.com/premium-vector/picture-boy-with-blue-shirt-that-says-hes-character_1230457-36809.jpg"}
                                 alt="User Avatar"
                                 className="h-8 w-8 rounded-full border-2 border-border"
                                 width={32}
@@ -50,7 +50,10 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
                         {/* Sign Out Button */}
                         <NavbarButton
                             variant="primary"
-                            onClick={signOut}
+                            onClick={async () => {
+                                const { error } = await authClient.signOut()
+                                console.log(error);
+                            }}
                             className="flex items-center gap-2"
                         >
                             <IconLogout className="h-4 w-4" />
@@ -102,9 +105,10 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
                                 <span className="text-sm text-muted-foreground">User</span>
                             </div>
                             <NavbarButton
-                                onClick={() => {
+                                onClick={async () => {
                                     setIsMobileMenuOpen(false);
-                                    signOut();
+                                    const { error } = await authClient.signOut();
+                                    console.log(error);
                                 }}
                                 variant="primary"
                                 className="w-full flex items-center gap-2"
