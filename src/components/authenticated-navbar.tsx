@@ -11,11 +11,11 @@ import {
     MobileNavToggle,
     MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
-import { useState } from "react";
-import { IconLogout } from "@tabler/icons-react";
 import Image from "next/image";
+import { useState } from "react";
 import { ModeToggle } from "./theme-toggle";
 import { authClient } from "@/lib/auth-client";
+import { LogOut } from "lucide-react";
 
 const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -56,7 +56,7 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
                             }}
                             className="flex items-center gap-2"
                         >
-                            <IconLogout className="h-4 w-4" />
+                            <LogOut className="h-4 w-4" />
                             Sign Out
                         </NavbarButton>
 
@@ -113,7 +113,7 @@ const AuthenticatedNavbar = ({ children }: { children: React.ReactNode }) => {
                                 variant="primary"
                                 className="w-full flex items-center gap-2"
                             >
-                                <IconLogout className="h-4 w-4" />
+                                <LogOut className="h-4 w-4" />
                                 Sign Out
                             </NavbarButton>
                         </div>

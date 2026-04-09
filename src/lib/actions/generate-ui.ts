@@ -2,7 +2,6 @@
 
 import { getAiModel } from '@/lib/ai';
 import { generateObject, jsonSchema } from 'ai';
-import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
 import { projects, screens, screenVersions, htmlContents } from '@/db/schema';
@@ -152,11 +151,6 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             prompt: prompt,
             schema: mobileUISchema,
             providerOptions: {
-                google: {
-                    thinkingConfig: {
-                        includeThoughts: true,
-                    },
-                } satisfies GoogleGenerativeAIProviderOptions,
                 openrouter: {
                     enableThinking: true,
                 }

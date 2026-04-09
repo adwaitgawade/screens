@@ -1,6 +1,5 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { IconMenu2, IconX } from "@tabler/icons-react";
 import {
     motion,
     AnimatePresence,
@@ -12,6 +11,7 @@ import Image from "next/image";
 import React, { useRef, useState } from "react";
 
 import logo from "@/../public/images/AppDraft-icon.png"
+import { Menu, X } from "lucide-react";
 
 interface NavbarProps {
     children: React.ReactNode;
@@ -226,9 +226,9 @@ export const MobileNavToggle = ({
     onClick: () => void;
 }) => {
     return isOpen ? (
-        <IconX className="text-black dark:text-white" onClick={onClick} />
+        <X className="text-black dark:text-white" onClick={onClick} />
     ) : (
-        <IconMenu2 className="text-black dark:text-white" onClick={onClick} />
+        <Menu className="text-black dark:text-white" onClick={onClick} />
     );
 };
 
