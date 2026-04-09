@@ -12,6 +12,8 @@ export const providerModels = {
         'llama-3-groq-70b-tool',
     ],
     openrouter: [
-        "minimax/minimax-m2.5:free"
+        "minimax/minimax-m2.5:free",
+        "z-ai/glm-4.5-air:free",
+        "openrouter/free"
     ]
 } as const;

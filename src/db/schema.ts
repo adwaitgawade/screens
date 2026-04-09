@@ -1,125 +1,183 @@
-import {
-    pgTable,
-    uuid,
-    text,
-    integer,
-    boolean,
-    jsonb,
-    index,
-    uniqueIndex,
-    pgSchema,
-} from 'drizzle-orm/pg-core';
-import { timestamps, timestamptz } from './_helpers';
+import { relations } from "drizzle-orm";
+import { pgTable, text, uuid, timestamp, boolean, index, integer, foreignKey } from "drizzle-orm/pg-core";
 
-// =====================
-// NEON AUTH REFERENCE TABLE
-// =====================
-// This table is managed by Neon Auth (Better Auth) in the 'neon_auth' schema.
-// It is defined here so other tables can reference it for FK relationships.
-export const authSchema = pgSchema('neon_auth');
 
-export const authUser = authSchema.table('user', {
-    id: uuid('id').primaryKey(),
-    name: text('name').notNull(),
-    email: text('email').notNull().unique(),
-    emailVerified: boolean('emailVerified').notNull().default(false),
-    image: text('image'),
-    createdAt: timestamptz('createdAt').defaultNow().notNull(),
-    updatedAt: timestamptz('updatedAt').defaultNow().notNull(),
+export const user = pgTable("user", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+        .defaultNow()
+        .$onUpdate(() => /* @__PURE__ */ new Date())
+        .notNull(),
 });
 
-// =====================
-// PROJECTS
-// =====================
-export const projects = pgTable(
-    'projects',
+export const session = pgTable(
+    "session",
     {
-        id: uuid('id').primaryKey().defaultRandom(),
-        userId: uuid('user_id')
-            .references(() => authUser.id, { onDelete: 'cascade' })
+        id: text("id").primaryKey(),
+        expiresAt: timestamp("expires_at").notNull(),
+        token: text("token").notNull().unique(),
+        createdAt: timestamp("created_at").defaultNow().notNull(),
+        updatedAt: timestamp("updated_at")
+            .$onUpdate(() => /* @__PURE__ */ new Date())
             .notNull(),
-        name: text('name').notNull(),
-        description: text('description'),
-        prompt: text('prompt'),
-        isArchived: boolean('is_archived').default(false),
-        ...timestamps,
+        ipAddress: text("ip_address"),
+        userAgent: text("user_agent"),
+        userId: text("user_id")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
     },
-    (t) => [
-        index('idx_projects_user_id').on(t.userId),
-        index('idx_projects_created_at').on(t.createdAt),
-    ],
+    (table) => [index("session_userId_idx").on(table.userId)],
 );
 
-// =====================
-// SCREENS
-// =====================
-export const screens = pgTable(
-    'screens',
+export const account = pgTable(
+    "account",
     {
-        id: uuid('id').primaryKey().defaultRandom(),
-        projectId: uuid('project_id')
-            .references(() => projects.id, { onDelete: 'cascade' })
+        id: text("id").primaryKey(),
+        accountId: text("account_id").notNull(),
+        providerId: text("provider_id").notNull(),
+        userId: text("user_id")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        accessToken: text("access_token"),
+        refreshToken: text("refresh_token"),
+        idToken: text("id_token"),
+        accessTokenExpiresAt: timestamp("access_token_expires_at"),
+        refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+        scope: text("scope"),
+        password: text("password"),
+        createdAt: timestamp("created_at").defaultNow().notNull(),
+        updatedAt: timestamp("updated_at")
+            .$onUpdate(() => /* @__PURE__ */ new Date())
             .notNull(),
-        name: text('name').notNull(),
-        orderIndex: integer('order_index').default(0),
-        isActive: boolean('is_active').default(true),
-        ...timestamps,
     },
-    (t) => [
-        index('idx_screens_project_id').on(t.projectId),
-        index('idx_screens_order_index').on(t.orderIndex),
-    ],
+    (table) => [index("account_userId_idx").on(table.userId)],
 );
 
-// =====================
-// HTML CONTENTS
-// =====================
-// Stores generated HTML content directly in the database.
-// Replaces the previous Supabase Storage approach.
-export const htmlContents = pgTable('html_contents', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    html: text('html').notNull(),
-    parentHtmlId: uuid('parent_html_id'),
-    createdAt: timestamptz('created_at').defaultNow().notNull(),
+export const verification = pgTable(
+    "verification",
+    {
+        id: text("id").primaryKey(),
+        identifier: text("identifier").notNull(),
+        value: text("value").notNull(),
+        expiresAt: timestamp("expires_at").notNull(),
+        createdAt: timestamp("created_at").defaultNow().notNull(),
+        updatedAt: timestamp("updated_at")
+            .defaultNow()
+            .$onUpdate(() => /* @__PURE__ */ new Date())
+            .notNull(),
+    },
+    (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const userRelations = relations(user, ({ many }) => ({
+    sessions: many(session),
+    accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+    user: one(user, {
+        fields: [session.userId],
+        references: [user.id],
+    }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+    user: one(user, {
+        fields: [account.userId],
+        references: [user.id],
+    }),
+}));
+
+
+
+export const htmlContents = pgTable("html_contents", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    html: text().notNull(),
+    parentHtmlId: uuid("parent_html_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
-// Self-referencing FK must be added after table definition
-// Note: parentHtmlId references htmlContents.id for generating screens on top of another reference
+export const screenVersions = pgTable("screen_versions", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    screenId: uuid("screen_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    userPrompt: text("user_prompt").notNull(),
+    aiPrompt: text("ai_prompt"),
+    htmlContentId: uuid("html_content_id").notNull(),
+    createdBy: text("created_by"),
+    isCurrent: boolean("is_current").default(false),
+    parentVersionId: uuid("parent_version_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+    index("idx_screen_versions_created_at").using("btree", table.createdAt.asc().nullsLast()),
+    index("idx_screen_versions_is_current").using("btree", table.isCurrent.asc().nullsLast()),
+    index("idx_screen_versions_parent_id").using("btree", table.parentVersionId.asc().nullsLast()),
+    index("idx_screen_versions_screen_id").using("btree", table.screenId.asc().nullsLast()),
+    foreignKey({
+        columns: [table.screenId],
+        foreignColumns: [screens.id],
+        name: "screen_versions_screen_id_screens_id_fk"
+    }).onDelete("cascade"),
+    foreignKey({
+        columns: [table.htmlContentId],
+        foreignColumns: [htmlContents.id],
+        name: "screen_versions_html_content_id_html_contents_id_fk"
+    }),
+    foreignKey({
+        columns: [table.createdBy],
+        foreignColumns: [user.id],
+        name: "screen_versions_created_by_user_id_fk"
+    }),
+]);
 
-// =====================
-// SCREEN VERSIONS
-// =====================
-export const screenVersions = pgTable(
-    'screen_versions',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        screenId: uuid('screen_id')
-            .references(() => screens.id, { onDelete: 'cascade' })
-            .notNull(),
-        versionNumber: integer('version_number').notNull(),
-        userPrompt: text('user_prompt').notNull(),
-        aiPrompt: text('ai_prompt'),
-        htmlContentId: uuid('html_content_id')
-            .references(() => htmlContents.id)
-            .notNull(),
-        createdBy: uuid('created_by').references(() => authUser.id),
-        isCurrent: boolean('is_current').default(false),
-        parentVersionId: uuid('parent_version_id'),
-        createdAt: timestamptz('created_at').defaultNow().notNull(),
-    },
-    (t) => [
-        index('idx_screen_versions_screen_id').on(t.screenId),
-        index('idx_screen_versions_is_current').on(t.isCurrent),
-        index('idx_screen_versions_created_at').on(t.createdAt),
-        index('idx_screen_versions_parent_id').on(t.parentVersionId),
-    ],
-);
+export const screens = pgTable("screens", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    projectId: uuid("project_id").notNull(),
+    name: text().notNull(),
+    orderIndex: integer("order_index").default(0),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+    index("idx_screens_order_index").using("btree", table.orderIndex.asc().nullsLast()),
+    index("idx_screens_project_id").using("btree", table.projectId.asc().nullsLast()),
+    foreignKey({
+        columns: [table.projectId],
+        foreignColumns: [projects.id],
+        name: "screens_project_id_projects_id_fk"
+    }).onDelete("cascade"),
+]);
+
+export const projects = pgTable("projects", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    userId: text("user_id").notNull(),
+    name: text().notNull(),
+    description: text(),
+    prompt: text(),
+    isArchived: boolean("is_archived").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+    index("idx_projects_created_at").using("btree", table.createdAt.asc().nullsLast()),
+    index("idx_projects_user_id").using("btree", table.userId.asc().nullsLast()),
+    foreignKey({
+        columns: [table.userId],
+        foreignColumns: [user.id],
+        name: "projects_user_id_user_id_fk"
+    }).onDelete("cascade"),
+]);
+
 
 // =====================
 // TYPE INFERENCE
 // =====================
-export const AuthUserSchema = authUser;
-export type AuthUser = typeof authUser.$inferSelect;
+export const AuthUserSchema = user;
+export type AuthUser = typeof user.$inferSelect;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
@@ -132,4 +190,3 @@ export type NewHtmlContent = typeof htmlContents.$inferInsert;
 
 export type ScreenVersion = typeof screenVersions.$inferSelect;
 export type NewScreenVersion = typeof screenVersions.$inferInsert;
-

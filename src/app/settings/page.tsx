@@ -1,15 +1,17 @@
 'use client'
 
-import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { useRouter } from 'next/navigation'
 import { Settings, User } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
+import { AuthenticatedNavbar } from '@/components/authenticated-navbar'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
 const SettingsPage = () => {
     const { data: session, isPending, error } = authClient.useSession();
 
-    if (!session?.user) {
-        return <div>Please log in to access settings.</div>
+    const router = useRouter()
+    if (!session) {
+        router.push("/auth/sign-in")
     }
 
     return (
@@ -33,12 +35,16 @@ const SettingsPage = () => {
                             <CardContent>
                                 <div className="space-y-2">
                                     <div>
+                                        <label className="text-sm font-medium text-muted-foreground">Name</label>
+                                        <p className="text-sm font-mono">{session?.user.name}</p>
+                                    </div>
+                                    <div>
                                         <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                                        <p className="text-sm font-mono">{session.user.id}</p>
+                                        <p className="text-sm font-mono">{session?.user.id}</p>
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Email</label>
-                                        <p className="text-sm">{session.user.email}</p>
+                                        <p className="text-sm">{session?.user.email}</p>
                                     </div>
                                 </div>
                             </CardContent>

@@ -1,10 +1,16 @@
-import { AuthView } from '@neondatabase/auth/react';
+import { AuthForm } from './auth-form';
+
 export const dynamicParams = false;
+
+export function generateStaticParams() {
+    return [
+        { path: 'sign-in' },
+        { path: 'sign-up' },
+    ];
+}
+
 export default async function AuthPage({ params }: { params: Promise<{ path: string }> }) {
     const { path } = await params;
-    return (
-        <main className="h-screen container mx-auto flex grow flex-col items-center justify-center gap-3 self-center p-4 md:p-6">
-            <AuthView path={path} />
-        </main>
-    );
+
+    return <AuthForm path={path} />;
 }

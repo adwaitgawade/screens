@@ -9,6 +9,7 @@ import { projects, screens, screenVersions, htmlContents } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { Langfuse, TextPromptClient } from 'langfuse';
 
 type GenerateUIResult = {
@@ -20,7 +21,7 @@ type GenerateUIResult = {
 const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPrompt: TextPromptClient }> => {
     const langfuse = new Langfuse();
     const prompt = await langfuse
-        .getPrompt("appdraft-system", undefined, {
+        .getPrompt("app-draft-grok", undefined, {
             label: "production",
         })
         .then((prompt) => {
@@ -44,9 +45,11 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             return { success: false, error: 'Prompt is too long (max 1000 characters)' };
         }
 
-        // Get authenticated user via Neon Auth
+        // Get authenticated user via Better Auth
         console.log('[generateUIComponent] Getting current user');
-        const { data: session } = await auth.getSession();
+        const session = await auth.api.getSession({
+            headers: await headers()
+        });
         if (!session?.user) {
             console.log('[generateUIComponent] User not authenticated');
             return { success: false, error: 'Not authenticated' };
@@ -144,7 +147,7 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
         const { prompt: systemPrompt, fetchedPrompt } = await getLangfuseSystemPrompt();
         console.log('[generateUIComponent] Calling generateObject for LLM UI generation');
         const { object: llmResult } = await generateObject({
-            model: getAiModel("openrouter", "minimax/minimax-m2.5:free"),
+            model: getAiModel("openrouter", "openrouter/free"),
             system: systemPrompt,
             prompt: prompt,
             schema: mobileUISchema,
@@ -155,7 +158,7 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
                     },
                 } satisfies GoogleGenerativeAIProviderOptions,
                 openrouter: {
-                    enableThinking: false,
+                    enableThinking: true,
                 }
             },
             experimental_telemetry: {

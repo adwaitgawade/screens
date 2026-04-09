@@ -1,9 +1,7 @@
+import "./globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
-import { NeonAuthUIProvider, UserButton } from '@neondatabase/auth/react';
-import { authClient } from "@/lib/auth-client";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AppDraft",
+  title: "app-draft",
   description: "Generate mobile UI screens with AI",
 };
 
@@ -36,9 +34,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <NeonAuthUIProvider authClient={authClient} emailOTP>
-            {children}
-          </NeonAuthUIProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html >
