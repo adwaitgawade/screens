@@ -9,6 +9,8 @@ export interface ProjectScreen {
     name: string;
     orderIndex: number | null;
     html: string;
+    parentVersionId?: string | null;
+    parentScreenId?: string | null;
 }
 
 export async function getProjectScreens(projectId: string): Promise<ProjectScreen[]> {
@@ -32,6 +34,7 @@ export async function getProjectScreens(projectId: string): Promise<ProjectScree
         const [version] = await db
             .select({
                 htmlContentId: screenVersions.htmlContentId,
+                parentVersionId: screenVersions.parentVersionId,
             })
             .from(screenVersions)
             .where(eq(screenVersions.screenId, screen.id))
@@ -55,14 +58,31 @@ export async function getProjectScreens(projectId: string): Promise<ProjectScree
             return null;
         }
 
+        // If there's a parent version, look up the parent screen
+        let parentScreenId: string | null = null;
+        if (version.parentVersionId) {
+            const [parentVersion] = await db
+                .select({
+                    screenId: screenVersions.screenId,
+                })
+                .from(screenVersions)
+                .where(eq(screenVersions.id, version.parentVersionId))
+                .limit(1);
+            if (parentVersion) {
+                parentScreenId = parentVersion.screenId;
+            }
+        }
+
         return {
             id: screen.id,
             name: screen.name,
             orderIndex: screen.orderIndex,
             html: content.html,
+            parentVersionId: version.parentVersionId,
+            parentScreenId: parentScreenId,
         };
     });
 
     const results = await Promise.all(screenPromises);
-    return results.filter((screen): screen is ProjectScreen => screen !== null);
+    return results.filter((screen): screen is Exclude<typeof screen, null> => screen !== null) as ProjectScreen[];
 }
