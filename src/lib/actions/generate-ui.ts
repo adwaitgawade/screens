@@ -20,8 +20,8 @@ type GenerateUIResult = {
 const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPrompt: TextPromptClient }> => {
     const langfuse = new Langfuse();
     const prompt = await langfuse
-        .getPrompt("app-draft-grok", undefined, {
-            label: "production",
+        .getPrompt('app-draft-grok', undefined, {
+            label: 'production',
         })
         .then((prompt) => {
             return { prompt: prompt.prompt, fetchedPrompt: prompt };
@@ -30,9 +30,13 @@ const getLangfuseSystemPrompt = async (): Promise<{ prompt: string, fetchedPromp
     return prompt;
 }
 
-export async function generateUIComponent(prompt: string, projectId?: string): Promise<GenerateUIResult> {
+export async function generateUIComponent(
+    prompt: string,
+    projectId?: string,
+    parentScreenId?: string
+): Promise<GenerateUIResult> {
     try {
-        console.log('[generateUIComponent] Start', { prompt, projectId });
+        console.log('[generateUIComponent] Start', { prompt, projectId, parentScreenId });
         // Input validation
         if (!prompt || prompt.trim().length === 0) {
             console.log('[generateUIComponent] No prompt provided');
@@ -108,6 +112,48 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
                 .where(eq(projects.id, projectId));
         }
 
+        // Handle parent screen if provided
+        let parentHtmlContent: string | null = null;
+        let parentVersionId: string | null = null;
+        let parentHtmlId: string | null = null;
+
+        if (parentScreenId) {
+            console.log('[generateUIComponent] Fetching parent screen', { parentScreenId });
+            
+            // Get the current version of the parent screen with its HTML content
+            const [parentVersion] = await db
+                .select({
+                    htmlContentId: screenVersions.htmlContentId,
+                    id: screenVersions.id,
+                })
+                .from(screenVersions)
+                .where(and(eq(screenVersions.screenId, parentScreenId), eq(screenVersions.isCurrent, true)))
+                .limit(1);
+
+            if (parentVersion) {
+                parentVersionId = parentVersion.id;
+                parentHtmlId = parentVersion.htmlContentId;
+
+                const [parentContent] = await db
+                    .select({ html: htmlContents.html })
+                    .from(htmlContents)
+                    .where(eq(htmlContents.id, parentVersion.htmlContentId))
+                    .limit(1);
+
+                if (parentContent) {
+                    parentHtmlContent = parentContent.html;
+                    console.log('[generateUIComponent] Parent screen found', { 
+                        parentVersionId, 
+                        parentHtmlId 
+                    });
+                }
+            } else {
+                console.log('[generateUIComponent] Parent screen not found or has no current version', { 
+                    parentScreenId 
+                });
+            }
+        }
+
         // Define schema for LLM response
         console.log('[generateUIComponent] Defining LLM schema');
         const mobileUISchema = jsonSchema<{
@@ -144,11 +190,31 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
         // Generate UI with LLM
         console.log('[generateUIComponent] Fetching system prompt from Langfuse');
         const { prompt: systemPrompt, fetchedPrompt } = await getLangfuseSystemPrompt();
+        
+        // Build enhanced prompt with parent context if available
+        let enhancedPrompt = prompt;
+        if (parentHtmlContent) {
+            enhancedPrompt = `The user wants to create a screen that follows up on an existing screen.
+            
+Parent Screen Context (HTML):
+${parentHtmlContent}
+
+User's Request:
+${prompt}
+
+Please generate a new screen that naturally continues from the parent screen. Consider:
+- Navigation flows (e.g., if parent shows a list, this could be a detail view)
+- Consistent styling and design patterns
+- Proper transitions and actions that make sense for the flow
+
+Generate the new screen HTML:`;
+        }
+        
         console.log('[generateUIComponent] Calling generateObject for LLM UI generation');
         const { object: llmResult } = await generateObject({
-            model: getAiModel("openrouter", "openrouter/free"),
+            model: getAiModel('openrouter', 'openrouter/free'),
             system: systemPrompt,
-            prompt: prompt,
+            prompt: enhancedPrompt,
             schema: mobileUISchema,
             providerOptions: {
                 openrouter: {
@@ -160,8 +226,8 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
                 metadata: {
                     langfusePrompt: fetchedPrompt.toJSON(),
                     userId: user.id,
-                    userEmail: user.email || "No email",
-                    projectId: finalProjectId || "No project id",
+                    userEmail: user.email || 'No email',
+                    projectId: finalProjectId || 'No project id',
                 }
             },
         });
@@ -177,11 +243,14 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
 
         const nextOrderIndex = lastScreen ? (lastScreen.orderIndex ?? 0) + 1 : 0;
 
-        // Store HTML content in the database
+        // Store HTML content in the database with parent reference if available
         const htmlContent = llmResult.component.html;
         const [newHtmlContent] = await db
             .insert(htmlContents)
-            .values({ html: htmlContent })
+            .values({ 
+                html: htmlContent,
+                parentHtmlId: parentHtmlId ?? undefined
+            })
             .returning({ id: htmlContents.id });
 
         if (!newHtmlContent) {
@@ -204,17 +273,18 @@ export async function generateUIComponent(prompt: string, projectId?: string): P
             return { success: false, error: 'Failed to create screen' };
         }
 
-        // Create screen version record
+        // Create screen version record with parent reference if available
         const [newVersion] = await db
             .insert(screenVersions)
             .values({
                 screenId: newScreen.id,
                 versionNumber: 1,
                 userPrompt: prompt,
-                aiPrompt: prompt,
+                aiPrompt: enhancedPrompt,
                 htmlContentId: newHtmlContent.id,
                 createdBy: userId,
                 isCurrent: true,
+                parentVersionId: parentVersionId ?? undefined,
             })
             .returning({ id: screenVersions.id });
 
